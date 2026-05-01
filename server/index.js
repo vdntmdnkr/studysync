@@ -105,7 +105,7 @@ setInterval(() => {
 }, 10 * 60 * 1000)
 
 const PORT = process.env.PORT || 3001
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 StudySync Signalling Server`)
   console.log(`   Running on port ${PORT}\n`)
 })
