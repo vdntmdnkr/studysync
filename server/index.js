@@ -1,7 +1,7 @@
-import express from 'express'
-import { createServer } from 'http'
-import { Server } from 'socket.io'
-import cors from 'cors'
+const express = require('express')
+const { createServer } = require('http')
+const { Server } = require('socket.io')
+const cors = require('cors')
 
 const app = express()
 const httpServer = createServer(app)
@@ -19,8 +19,9 @@ const rooms = new Map()
 function generateCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code
-  do { code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('') }
-  while (rooms.has(code))
+  do {
+    code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  } while (rooms.has(code))
   return code
 }
 
@@ -47,6 +48,10 @@ app.get('/rooms/:code/status', (req, res) => {
   const room = rooms.get(req.params.code.toUpperCase())
   if (!room) return res.status(404).json({ error: 'Room not found' })
   res.json({ roomCode: room.code, peerCount: room.peers.size, full: room.peers.size >= 2 })
+})
+
+app.get('/', (req, res) => {
+  res.json({ status: 'StudySync signalling server is running 🚀' })
 })
 
 // ─── WebSocket Signalling ──────────────────────────────
@@ -88,7 +93,7 @@ io.on('connection', (socket) => {
   })
 })
 
-// ─── Cleanup expired rooms (1h) ────────────────────────
+// ─── Cleanup ────────────────────────────────────────────
 setInterval(() => {
   const cutoff = Date.now() - 60 * 60 * 1000
   for (const [code, room] of rooms.entries()) {
@@ -102,5 +107,5 @@ setInterval(() => {
 const PORT = process.env.PORT || 3001
 httpServer.listen(PORT, () => {
   console.log(`\n🚀 StudySync Signalling Server`)
-  console.log(`   Running on http://localhost:${PORT}\n`)
+  console.log(`   Running on port ${PORT}\n`)
 })
