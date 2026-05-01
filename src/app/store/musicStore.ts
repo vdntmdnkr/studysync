@@ -4,21 +4,53 @@ export interface MusicTrack {
   id: number
   title: string
   artist: string
-  filename: string
-  duration: number   // seconds
-  bpm: 'slow' | 'medium' | 'fast'
-  genre: 'lofi' | 'ambient' | 'classical' | 'jazz'
+  url: string        // actual streamable URL
+  duration: number   // seconds (0 = live stream)
+  genre: 'lofi' | 'ambient' | 'classical' | 'jazz' | 'electronic'
 }
 
+// Free, CORS-enabled lofi / ambient study radio streams from SomeFM
 export const BUNDLED_TRACKS: MusicTrack[] = [
-  { id: 0, title: 'Midnight Study', artist: 'Lo-Fi Dreams', filename: 'midnight_study.mp3', duration: 187, bpm: 'slow', genre: 'lofi' },
-  { id: 1, title: 'Rain on Glass', artist: 'Ambient Collective', filename: 'rain_on_glass.mp3', duration: 214, bpm: 'slow', genre: 'ambient' },
-  { id: 2, title: 'Coffee & Code', artist: 'Chill Beats Studio', filename: 'coffee_code.mp3', duration: 203, bpm: 'medium', genre: 'lofi' },
-  { id: 3, title: 'Autumn Leaves', artist: 'Jazz Trio', filename: 'autumn_leaves.mp3', duration: 256, bpm: 'medium', genre: 'jazz' },
-  { id: 4, title: 'Deep Focus', artist: 'Study Waves', filename: 'deep_focus.mp3', duration: 298, bpm: 'slow', genre: 'ambient' },
-  { id: 5, title: 'Morning Pages', artist: 'Lo-Fi Dreams', filename: 'morning_pages.mp3', duration: 178, bpm: 'slow', genre: 'lofi' },
-  { id: 6, title: 'Zen Garden', artist: 'Ambient Collective', filename: 'zen_garden.mp3', duration: 312, bpm: 'slow', genre: 'classical' },
-  { id: 7, title: 'Starlight Session', artist: 'Chill Beats Studio', filename: 'starlight_session.mp3', duration: 234, bpm: 'medium', genre: 'lofi' },
+  {
+    id: 0, title: 'Groove Salad', artist: 'SomaFM',
+    url: 'https://ice6.somafm.com/groovesalad-256-mp3',
+    duration: 0, genre: 'ambient',
+  },
+  {
+    id: 1, title: 'Drone Zone', artist: 'SomaFM',
+    url: 'https://ice6.somafm.com/dronezone-256-mp3',
+    duration: 0, genre: 'ambient',
+  },
+  {
+    id: 2, title: 'Deep Space One', artist: 'SomaFM',
+    url: 'https://ice6.somafm.com/deepspaceone-128-mp3',
+    duration: 0, genre: 'electronic',
+  },
+  {
+    id: 3, title: 'Lush', artist: 'SomaFM',
+    url: 'https://ice6.somafm.com/lush-128-mp3',
+    duration: 0, genre: 'ambient',
+  },
+  {
+    id: 4, title: 'Secret Agent', artist: 'SomaFM',
+    url: 'https://ice6.somafm.com/secretagent-128-mp3',
+    duration: 0, genre: 'jazz',
+  },
+  {
+    id: 5, title: 'Illinois Street Lounge', artist: 'SomaFM',
+    url: 'https://ice6.somafm.com/illstreet-128-mp3',
+    duration: 0, genre: 'lofi',
+  },
+  {
+    id: 6, title: 'Suburbs of Goa', artist: 'SomaFM',
+    url: 'https://ice6.somafm.com/suburbsofgoa-128-mp3',
+    duration: 0, genre: 'ambient',
+  },
+  {
+    id: 7, title: 'Cliqhop Idm', artist: 'SomaFM',
+    url: 'https://ice6.somafm.com/cliqhop-128-mp3',
+    duration: 0, genre: 'electronic',
+  },
 ]
 
 interface MusicState {

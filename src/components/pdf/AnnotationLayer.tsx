@@ -2,17 +2,20 @@ import { useRef, useEffect, useCallback } from 'react'
 import { useAnnotationStore } from '../../app/store/annotationStore'
 import { useSessionStore } from '../../app/store/sessionStore'
 import type { PenData, HighlightData } from '../../app/store/annotationStore'
+import type { RefObject } from 'react'
+import type { PeerConnection } from '../../lib/webrtc/PeerConnection'
 
 interface AnnotationLayerProps {
   canvasRef: React.RefObject<HTMLCanvasElement>
   pageNumber: number
+  peerConnectionRef: RefObject<PeerConnection | null>
 }
 
 function generateId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-export default function AnnotationLayer({ canvasRef, pageNumber }: AnnotationLayerProps) {
+export default function AnnotationLayer({ canvasRef, pageNumber, peerConnectionRef }: AnnotationLayerProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const isMouseDown = useRef(false)
   const currentPoints = useRef<Array<{ x: number; y: number }>>([])
@@ -141,6 +144,7 @@ export default function AnnotationLayer({ canvasRef, pageNumber }: AnnotationLay
         } as PenData,
       }
       addAnnotation(annotation)
+      peerConnectionRef.current?.sendOnChannel('annotations', annotation)
     } else if (activeTool === 'highlight' && startPos.current) {
       tempRectRef.current?.remove()
       tempRectRef.current = null
@@ -152,14 +156,16 @@ export default function AnnotationLayer({ canvasRef, pageNumber }: AnnotationLay
       const rh = Math.abs(py - startPos.current.y) / h
 
       if (rw > 0.01 && rh > 0.005) {
-        addAnnotation({
+        const ann = {
           id: generateId(),
-          type: 'highlight',
+          type: 'highlight' as const,
           userId: userId!,
           pageNumber,
           createdAt: Date.now(),
           data: { x: rx, y: ry, width: rw, height: rh, color: peerColor } as HighlightData,
-        })
+        }
+        addAnnotation(ann)
+        peerConnectionRef.current?.sendOnChannel('annotations', ann)
       }
     }
 

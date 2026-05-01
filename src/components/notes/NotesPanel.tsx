@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { StickyNote, Plus, Trash2, Link, Hash } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { StickyNote, Plus, Trash2, Link, Send } from 'lucide-react'
 import { useNotesStore } from '../../app/store/notesStore'
 import { useSessionStore } from '../../app/store/sessionStore'
 import type { RefObject } from 'react'
@@ -20,7 +20,7 @@ const TAG_COLORS: Record<string, string> = {
   '#review': '#4ECDC4',
 }
 
-export default function NotesPanel({ peerConnectionRef: _peerConnectionRef }: NotesPanelProps) {
+export default function NotesPanel({ peerConnectionRef }: NotesPanelProps) {
   const { sharedNotes, privateNotes, activeTab, remoteIsTyping,
     setActiveTab, addSharedNote, addPrivateNote, removeSharedNote, removePrivateNote } = useNotesStore()
   const { userId, currentPage } = useSessionStore()
@@ -44,6 +44,8 @@ export default function NotesPanel({ peerConnectionRef: _peerConnectionRef }: No
 
     if (activeTab === 'shared') {
       addSharedNote(note)
+      // Send to peer over WebRTC
+      peerConnectionRef.current?.sendOnChannel('notes', { action: 'add', note })
     } else {
       addPrivateNote(note)
     }
@@ -51,8 +53,12 @@ export default function NotesPanel({ peerConnectionRef: _peerConnectionRef }: No
   }
 
   const handleDelete = (id: string) => {
-    if (activeTab === 'shared') removeSharedNote(id)
-    else removePrivateNote(id)
+    if (activeTab === 'shared') {
+      removeSharedNote(id)
+      peerConnectionRef.current?.sendOnChannel('notes', { action: 'delete', id })
+    } else {
+      removePrivateNote(id)
+    }
   }
 
   return (
@@ -93,10 +99,7 @@ export default function NotesPanel({ peerConnectionRef: _peerConnectionRef }: No
               <div
                 key={i}
                 className="w-1 h-1 rounded-full animate-pulse"
-                style={{
-                  background: 'var(--color-accent-teal)',
-                  animationDelay: `${i * 0.2}s`,
-                }}
+                style={{ background: 'var(--color-accent-teal)', animationDelay: `${i * 0.2}s` }}
               />
             ))}
           </div>

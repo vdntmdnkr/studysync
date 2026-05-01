@@ -12,7 +12,7 @@ interface PDFViewerProps {
   peerConnectionRef: RefObject<PeerConnection | null>
 }
 
-export default function PDFViewer({ peerConnectionRef: _ref }: PDFViewerProps) {
+export default function PDFViewer({ peerConnectionRef }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pdfDocRef = useRef<unknown>(null)
@@ -168,7 +168,7 @@ export default function PDFViewer({ peerConnectionRef: _ref }: PDFViewerProps) {
                 transition: 'opacity 0.2s ease',
               }}
             />
-            <AnnotationLayer canvasRef={canvasRef} pageNumber={currentPage} />
+            <AnnotationLayer canvasRef={canvasRef} pageNumber={currentPage} peerConnectionRef={peerConnectionRef} />
             <CursorLayer canvasRef={canvasRef} />
           </div>
         )}
