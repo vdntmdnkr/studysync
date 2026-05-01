@@ -157,7 +157,24 @@ export default function PDFViewer({ peerConnectionRef }: PDFViewerProps) {
             </button>
           </div>
         ) : (
-          <div className="relative" style={{ display: 'inline-block' }}>
+          <div
+            className="relative"
+            style={{ display: 'inline-block' }}
+            onMouseMove={(e) => {
+              if (!canvasRef.current || !peerConnectionRef.current) return
+              const rect = canvasRef.current.getBoundingClientRect()
+              const x = (e.clientX - rect.left) / rect.width
+              const y = (e.clientY - rect.top) / rect.height
+              
+              // Only send if inside bounds
+              if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
+                const { userId } = useSessionStore.getState()
+                peerConnectionRef.current.sendOnChannel('cursors', {
+                  x, y, pageNumber: currentPage, userId
+                })
+              }
+            }}
+          >
             <canvas
               ref={canvasRef}
               style={{

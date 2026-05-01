@@ -1,4 +1,5 @@
-import { Pen, Highlighter, StickyNote, Type, MousePointer, Eraser, Timer, Video } from 'lucide-react'
+import { Pen, Highlighter, StickyNote, Type, MousePointer, Eraser, Timer, Video, MonitorUp, MonitorOff } from 'lucide-react'
+import { useSessionStore } from '../../app/store/sessionStore'
 import { useAnnotationStore, type AnnotationTool } from '../../app/store/annotationStore'
 import type { RefObject } from 'react'
 import type { PeerConnection } from '../../lib/webrtc/PeerConnection'
@@ -25,8 +26,60 @@ const TOOLS: ToolButton[] = [
 
 const STROKE_WIDTHS = [1, 2, 4, 6]
 
-export default function Toolbar({ peerConnectionRef: _peerConnectionRef, onTimerClick }: ToolbarProps) {
+export default function Toolbar({ peerConnectionRef, onTimerClick }: ToolbarProps) {
   const { activeTool, setActiveTool, strokeWidth, setStrokeWidth } = useAnnotationStore()
+  const { localStream, isScreenSharing, setScreenSharing } = useSessionStore()
+
+  const toggleScreenShare = async () => {
+    if (!peerConnectionRef.current) return
+
+    if (isScreenSharing) {
+      // Stop screen sharing: revert to camera
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+        const videoTrack = stream.getVideoTracks()[0]
+        
+        await peerConnectionRef.current.replaceVideoTrack(videoTrack)
+        
+        if (localStream) {
+          const oldTrack = localStream.getVideoTracks()[0]
+          if (oldTrack) {
+            oldTrack.stop()
+            localStream.removeTrack(oldTrack)
+          }
+          localStream.addTrack(videoTrack)
+        }
+        setScreenSharing(false)
+      } catch (err) {
+        console.error('Failed to revert to camera:', err)
+      }
+    } else {
+      // Start screen sharing
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
+        const screenTrack = stream.getVideoTracks()[0]
+        
+        // Listen for user clicking 'Stop sharing' on browser UI
+        screenTrack.onended = () => {
+          toggleScreenShare() // revert to camera
+        }
+
+        await peerConnectionRef.current.replaceVideoTrack(screenTrack)
+        
+        if (localStream) {
+          const oldTrack = localStream.getVideoTracks()[0]
+          if (oldTrack) {
+            oldTrack.stop()
+            localStream.removeTrack(oldTrack)
+          }
+          localStream.addTrack(screenTrack)
+        }
+        setScreenSharing(true)
+      } catch (err) {
+        console.error('Failed to share screen:', err)
+      }
+    }
+  }
 
   return (
     <div
@@ -90,12 +143,16 @@ export default function Toolbar({ peerConnectionRef: _peerConnectionRef, onTimer
       {/* Right tools */}
       <div className="flex items-center gap-1">
         <button
+          onClick={toggleScreenShare}
           className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium transition-all hover:bg-white/5"
-          style={{ color: 'var(--color-text-secondary)' }}
-          data-tooltip="Shared Video"
+          style={{
+            color: isScreenSharing ? 'var(--color-accent-red)' : 'var(--color-text-secondary)',
+            background: isScreenSharing ? 'rgba(255, 107, 107, 0.1)' : undefined,
+          }}
+          data-tooltip={isScreenSharing ? "Stop Sharing" : "Share Screen"}
         >
-          <Video size={14} />
-          Video
+          {isScreenSharing ? <MonitorOff size={14} /> : <MonitorUp size={14} />}
+          {isScreenSharing ? "Stop Share" : "Share Screen"}
         </button>
 
         <div className="h-4 w-px mx-1" style={{ background: 'var(--color-border)' }} />

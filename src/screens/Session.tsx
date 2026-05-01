@@ -6,7 +6,9 @@ import { useAnnotationStore } from '../app/store/annotationStore'
 import { useNotesStore } from '../app/store/notesStore'
 import { useMusicStore } from '../app/store/musicStore'
 import { useChatStore } from '../app/store/chatStore'
+import { useCursorStore } from '../app/store/cursorStore'
 import type { ChatMessage } from '../app/store/chatStore'
+import type { CursorPos } from '../app/store/cursorStore'
 import TopBar from '../components/toolbar/TopBar'
 import PDFViewer from '../components/pdf/PDFViewer'
 import CameraFeed from '../components/camera/CameraFeed'
@@ -113,6 +115,9 @@ export default function Session() {
       const { addSharedNote, removeSharedNote } = useNotesStore.getState()
       if (msg.action === 'add' && msg.note) addSharedNote(msg.note as Note)
       else if (msg.action === 'delete' && msg.id) removeSharedNote(msg.id as string)
+
+    } else if (channel === 'cursors') {
+      useCursorStore.getState().setRemoteCursor({ ...(msg as unknown as CursorPos), lastSeen: Date.now() })
 
     } else if (channel === 'chat') {
       useChatStore.getState().addMessage(msg as unknown as ChatMessage)

@@ -1,37 +1,33 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useSessionStore } from '../../app/store/sessionStore'
-
-interface CursorPos {
-  x: number // 0–1 normalised
-  y: number // 0–1 normalised
-  pageNumber: number
-  userId: 'A' | 'B'
-  lastSeen: number
-}
+import { useCursorStore } from '../../app/store/cursorStore'
 
 interface CursorLayerProps {
   canvasRef: React.RefObject<HTMLCanvasElement>
 }
 
 export default function CursorLayer({ canvasRef }: CursorLayerProps) {
-  const { userId } = useSessionStore()
-  const [remoteCursor, setRemoteCursor] = useState<CursorPos | null>(null)
+  const { currentPage } = useSessionStore()
+  const { remoteCursor, setRemoteCursor } = useCursorStore()
   const fadeTimerRef = useRef<number | null>(null)
 
   // Fade out cursor after 2 seconds of inactivity
   useEffect(() => {
     if (!remoteCursor) return
-    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current)
+    if (fadeTimerRef.current) window.clearTimeout(fadeTimerRef.current)
     fadeTimerRef.current = window.setTimeout(() => {
       setRemoteCursor(null)
     }, 2000)
     return () => {
-      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current)
+      if (fadeTimerRef.current) window.clearTimeout(fadeTimerRef.current)
     }
-  }, [remoteCursor])
+  }, [remoteCursor, setRemoteCursor])
 
   const canvas = canvasRef.current
   if (!canvas || !remoteCursor) return null
+
+  // Don't show cursor if they are on a different page!
+  if (remoteCursor.pageNumber !== currentPage) return null
 
   const cw = canvas.width
   const ch = canvas.height
@@ -53,7 +49,10 @@ export default function CursorLayer({ canvasRef }: CursorLayerProps) {
         overflow: 'visible',
       }}
     >
-      <g transform={`translate(${px}, ${py})`}>
+      <g
+        transform={`translate(${px}, ${py})`}
+        style={{ transition: 'transform 0.05s linear' }}
+      >
         {/* SVG cursor arrow */}
         <path
           d="M0 0 L0 16 L4 12 L7 18 L9 17 L6 11 L12 11 Z"
