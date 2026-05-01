@@ -13,7 +13,7 @@ import PomodoroTimer from '../components/timer/PomodoroTimer'
 import { SignalClient } from '../lib/webrtc/SignalClient'
 import { PeerConnection } from '../lib/webrtc/PeerConnection'
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://studysync-production-bc61.up.railway.app'
 
 export default function Session() {
   const navigate = useNavigate()

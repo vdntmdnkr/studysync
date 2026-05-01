@@ -5,7 +5,7 @@ import { Copy, Check, ArrowRight, Loader2, BookOpen, Users, Zap, Lock } from 'lu
 import { useSessionStore } from '../app/store/sessionStore'
 
 // Change this to your server URL
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://studysync-production-bc61.up.railway.app'
 
 type HomeMode = 'landing' | 'creating' | 'created' | 'joining'
 
