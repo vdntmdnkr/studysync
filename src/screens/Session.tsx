@@ -7,6 +7,7 @@ import { useNotesStore } from '../app/store/notesStore'
 import { useMusicStore } from '../app/store/musicStore'
 import { useChatStore } from '../app/store/chatStore'
 import { useCursorStore } from '../app/store/cursorStore'
+import { useTimerStore } from '../app/store/timerStore'
 import type { ChatMessage } from '../app/store/chatStore'
 import type { CursorPos } from '../app/store/cursorStore'
 import TopBar from '../components/toolbar/TopBar'
@@ -96,12 +97,32 @@ export default function Session() {
         peerConn.addLocalStream(stream)
       }
 
+      signalClient.onPeerJoined(() => {
+        setPeerConnected(true)
+      })
+
+      signalClient.onPeerLeft(() => {
+        setPeerConnected(false)
+        setConnectionState('disconnected')
+        alert('Your study partner has left the session.')
+      })
+
       // 5. Connect to signalling server
       signalClient.connect(roomCode, token)
       setConnectionState('waiting')
     }
 
     init()
+
+    // Timer Background Ticker
+    const timerInterval = setInterval(() => {
+      const { isRunning, endsAt, completePhase, setTimeLeft } = useTimerStore.getState()
+      if (isRunning && endsAt) {
+        const remaining = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))
+        setTimeLeft(remaining)
+        if (remaining === 0) completePhase()
+      }
+    }, 500)
 
     return () => {
       mounted = false
@@ -163,6 +184,9 @@ export default function Session() {
         useSessionStore.getState().setCoBrowserUrl(parsed.url)
         setLeftPanelTab('browser')
       }
+
+    } else if (channel === 'timer-sync') {
+      useTimerStore.getState().syncTimer(msg as any)
 
     } else if (channel === 'music-sync') {
       const store = useMusicStore.getState()

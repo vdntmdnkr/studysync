@@ -1,5 +1,6 @@
 import { Pen, Highlighter, StickyNote, Type, MousePointer, Eraser, Timer, Video, MonitorUp, MonitorOff } from 'lucide-react'
 import { useSessionStore } from '../../app/store/sessionStore'
+import { useTimerStore } from '../../app/store/timerStore'
 import { useAnnotationStore, type AnnotationTool } from '../../app/store/annotationStore'
 import type { RefObject } from 'react'
 import type { PeerConnection } from '../../lib/webrtc/PeerConnection'
@@ -29,6 +30,13 @@ const STROKE_WIDTHS = [1, 2, 4, 6]
 export default function Toolbar({ peerConnectionRef, onTimerClick }: ToolbarProps) {
   const { activeTool, setActiveTool, strokeWidth, setStrokeWidth } = useAnnotationStore()
   const { localStream, isScreenSharing, setScreenSharing } = useSessionStore()
+  const { timeLeft, isRunning, phase } = useTimerStore()
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60)
+    const sec = Math.floor(s % 60)
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+  }
 
   const toggleScreenShare = async () => {
     if (!peerConnectionRef.current) return
@@ -160,11 +168,16 @@ export default function Toolbar({ peerConnectionRef, onTimerClick }: ToolbarProp
         <button
           onClick={onTimerClick}
           className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium transition-all hover:bg-white/5"
-          style={{ color: 'var(--color-text-secondary)' }}
+          style={{ 
+            color: isRunning ? (phase === 'focus' ? 'var(--color-accent-green)' : 'var(--color-accent-teal)') : 'var(--color-text-secondary)',
+            background: isRunning ? 'rgba(93, 202, 165, 0.1)' : undefined
+          }}
           data-tooltip="Pomodoro Timer"
         >
           <Timer size={14} />
-          <span className="font-mono" style={{ fontFamily: 'DM Mono, monospace' }}>25:00</span>
+          <span className="font-mono" style={{ fontFamily: 'DM Mono, monospace' }}>
+            {formatTime(timeLeft)}
+          </span>
         </button>
       </div>
     </div>

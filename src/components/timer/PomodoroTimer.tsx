@@ -1,69 +1,34 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Timer, Play, Pause, RotateCcw, Settings, X } from 'lucide-react'
 import type { RefObject } from 'react'
 import type { PeerConnection } from '../../lib/webrtc/PeerConnection'
+import { useTimerStore } from '../../app/store/timerStore'
 
 interface PomodoroTimerProps {
   peerConnectionRef: RefObject<PeerConnection | null>
   onClose: () => void
 }
 
-type Phase = 'focus' | 'break'
-
 export default function PomodoroTimer({ peerConnectionRef, onClose }: PomodoroTimerProps) {
-  const [phase, setPhase] = useState<Phase>('focus')
-  const [isRunning, setIsRunning] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(25 * 60) // seconds
-  const [focusDuration, setFocusDuration] = useState(25)
-  const [breakDuration, setBreakDuration] = useState(5)
+  const { 
+    phase, isRunning, timeLeft, focusDuration, breakDuration, 
+    sessionsCompleted, setDurations, setIsRunning, setTimeLeft, completePhase
+  } = useTimerStore()
+  
   const [showSettings, setShowSettings] = useState(false)
-  const [sessionsCompleted, setSessionsCompleted] = useState(0)
-  const endsAtRef = useRef<number | null>(null)
-  const intervalRef = useRef<number | null>(null)
 
   const totalDuration = (phase === 'focus' ? focusDuration : breakDuration) * 60
   const progress = 1 - timeLeft / totalDuration
 
-  useEffect(() => {
-    if (isRunning) {
-      intervalRef.current = window.setInterval(() => {
-        if (endsAtRef.current) {
-          const remaining = Math.max(0, Math.ceil((endsAtRef.current - Date.now()) / 1000))
-          setTimeLeft(remaining)
-          if (remaining === 0) {
-            handlePhaseComplete()
-          }
-        }
-      }, 500)
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
-  }, [isRunning])
-
-  const handlePhaseComplete = () => {
-    setIsRunning(false)
-    const nextPhase: Phase = phase === 'focus' ? 'break' : 'focus'
-    if (phase === 'focus') setSessionsCompleted(s => s + 1)
-
-    setPhase(nextPhase)
-    setTimeLeft((nextPhase === 'focus' ? focusDuration : breakDuration) * 60)
-
-    // Browser notification
-    if (Notification.permission === 'granted') {
-      new Notification(nextPhase === 'break' ? '☕ Break Time!' : '📚 Focus Time!', {
-        body: nextPhase === 'break' ? 'Take a well-deserved break.' : 'Time to focus!',
-      })
-    } else {
-      Notification.requestPermission()
-    }
-  }
-
   const handleStartPause = () => {
     const next = !isRunning
+    let newEndsAt = null
     if (next) {
-      endsAtRef.current = Date.now() + timeLeft * 1000
+      newEndsAt = Date.now() + timeLeft * 1000
+      useTimerStore.setState({ endsAt: newEndsAt })
+    } else {
+      useTimerStore.setState({ endsAt: null })
     }
     setIsRunning(next)
 
@@ -71,21 +36,26 @@ export default function PomodoroTimer({ peerConnectionRef, onClose }: PomodoroTi
     peerConnectionRef.current?.sendOnChannel('timer-sync', {
       action: next ? 'start' : 'pause',
       phase,
-      endsAt: endsAtRef.current,
+      endsAt: newEndsAt,
       focusDuration,
       breakDuration,
     })
   }
 
   const handleReset = () => {
-    setIsRunning(false)
-    endsAtRef.current = null
-    setTimeLeft((phase === 'focus' ? focusDuration : breakDuration) * 60)
+    useTimerStore.getState().resetTimer()
+    peerConnectionRef.current?.sendOnChannel('timer-sync', {
+      action: 'pause',
+      phase,
+      endsAt: null,
+      focusDuration,
+      breakDuration,
+    })
   }
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60)
-    const sec = s % 60
+    const sec = Math.floor(s % 60)
     return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
   }
 
@@ -96,21 +66,20 @@ export default function PomodoroTimer({ peerConnectionRef, onClose }: PomodoroTi
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      className="fixed inset-0 flex items-center justify-center z-50"
-      style={{ background: 'rgba(13,13,26,0.8)', backdropFilter: 'blur(8px)' }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 20, scale: 0.95 }}
+      className="absolute z-40"
+      style={{ bottom: 60, right: 20 }} // Floating position above toolbar
     >
       <div
-        className="glass rounded-2xl p-8 flex flex-col items-center gap-6 relative"
-        style={{ width: 320, boxShadow: 'var(--shadow-elevated)' }}
+        className="glass rounded-2xl p-6 flex flex-col items-center gap-6 relative"
+        style={{ width: 280, boxShadow: 'var(--shadow-elevated)', border: '1px solid rgba(255,255,255,0.1)' }}
       >
         {/* Close */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/5"
+          className="absolute top-3 right-3 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/5"
           style={{ color: 'var(--color-text-muted)' }}
         >
           <X size={15} />
@@ -120,7 +89,7 @@ export default function PomodoroTimer({ peerConnectionRef, onClose }: PomodoroTi
         <div className="flex items-center gap-2">
           <Timer size={16} style={{ color: phaseColor }} />
           <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-            Pomodoro Timer
+            Pomodoro
           </span>
           <span className="text-xs px-2 py-0.5 rounded-full font-mono capitalize"
             style={{
@@ -197,16 +166,22 @@ export default function PomodoroTimer({ peerConnectionRef, onClose }: PomodoroTi
               exit={{ height: 0, opacity: 0 }}
               className="w-full overflow-hidden"
             >
-              <div className="flex gap-4 pt-2">
+              <div className="flex gap-4 pt-2 border-t mt-4" style={{ borderColor: 'var(--color-border)' }}>
                 <DurationSetting
                   label="Focus"
                   value={focusDuration}
-                  onChange={(v) => { setFocusDuration(v); if (phase === 'focus') setTimeLeft(v * 60) }}
+                  onChange={(v) => { 
+                    setDurations(v, breakDuration); 
+                    if (phase === 'focus') setTimeLeft(v * 60) 
+                  }}
                 />
                 <DurationSetting
                   label="Break"
                   value={breakDuration}
-                  onChange={(v) => { setBreakDuration(v); if (phase === 'break') setTimeLeft(v * 60) }}
+                  onChange={(v) => { 
+                    setDurations(focusDuration, v); 
+                    if (phase === 'break') setTimeLeft(v * 60) 
+                  }}
                 />
               </div>
             </motion.div>
