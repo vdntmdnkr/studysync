@@ -132,7 +132,11 @@ export default function Session() {
         incomingFileMeta.current = { name: meta.name, size: meta.size, mime: meta.mime }
         incomingBytesReceived.current = 0
         setPdfTransferProgress(0)
-      } else if (meta.type === 'done') {
+      }
+
+    } else if (channel === 'file-transfer') {
+      // Could be binary data or the 'done' JSON message
+      if (data && typeof data === 'object' && 'type' in data && (data as any).type === 'done') {
         const blob = new Blob(incomingFileChunks.current, { type: incomingFileMeta.current?.mime || 'application/pdf' })
         const url = URL.createObjectURL(blob)
         setPdf(url, 0)
@@ -140,9 +144,9 @@ export default function Session() {
         incomingFileChunks.current = []
         incomingFileMeta.current = null
         incomingBytesReceived.current = 0
+        return
       }
 
-    } else if (channel === 'file-transfer') {
       // It's binary data (ArrayBuffer)
       incomingFileChunks.current.push(data as ArrayBuffer)
       incomingBytesReceived.current += (data as ArrayBuffer).byteLength

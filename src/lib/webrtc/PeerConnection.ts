@@ -224,7 +224,8 @@ export class PeerConnection {
       }
     }
 
-    this.sendOnChannel('file-meta', { type: 'done' })
+    // Send done over the same ordered channel so it arrives AFTER all chunks
+    channel.send(JSON.stringify({ type: 'done' }))
   }
 
   getStats() {

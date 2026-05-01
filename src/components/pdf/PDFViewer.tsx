@@ -209,6 +209,7 @@ export default function PDFViewer({ peerConnectionRef }: PDFViewerProps) {
               style={{
                 display: 'block',
                 borderRadius: 8,
+                background: 'white',
                 boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
                 opacity: isRendering ? 0.7 : 1,
                 transition: 'opacity 0.2s ease',
