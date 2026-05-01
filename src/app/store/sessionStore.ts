@@ -24,6 +24,8 @@ interface SessionState {
   currentPdfUrl: string | null
   currentPage: number
   totalPages: number
+  pdfTransferProgress: number | null // 0-100, null if not transferring
+  coBrowserUrl: string | null
 
   // Actions
   setRoom: (roomCode: string, token: string, userId: UserId) => void
@@ -38,6 +40,8 @@ interface SessionState {
   setPdf: (url: string, totalPages: number) => void
   setCurrentPage: (page: number) => void
   setTotalPages: (total: number) => void
+  setPdfTransferProgress: (progress: number | null) => void
+  setCoBrowserUrl: (url: string | null) => void
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
@@ -54,6 +58,8 @@ export const useSessionStore = create<SessionState>((set) => ({
   currentPdfUrl: null,
   currentPage: 1,
   totalPages: 0,
+  pdfTransferProgress: null,
+  coBrowserUrl: null,
 
   setRoom: (roomCode, token, userId) =>
     set({ roomCode, token, userId }),
@@ -70,6 +76,8 @@ export const useSessionStore = create<SessionState>((set) => ({
       currentPdfUrl: null,
       currentPage: 1,
       totalPages: 0,
+      pdfTransferProgress: null,
+      coBrowserUrl: null,
     }),
 
   setConnectionState: (state) => set({ connectionState: state }),
@@ -79,7 +87,9 @@ export const useSessionStore = create<SessionState>((set) => ({
   setMicOn: (on) => set({ isMicOn: on }),
   setCameraOn: (on) => set({ isCameraOn: on }),
   setScreenSharing: (sharing) => set({ isScreenSharing: sharing }),
-  setPdf: (url, totalPages) => set({ currentPdfUrl: url, totalPages, currentPage: 1 }),
+  setPdf: (url, totalPages) => set({ currentPdfUrl: url, totalPages, currentPage: 1, pdfTransferProgress: null }),
   setCurrentPage: (page) => set({ currentPage: page }),
   setTotalPages: (total) => set({ totalPages: total }),
+  setPdfTransferProgress: (progress) => set({ pdfTransferProgress: progress }),
+  setCoBrowserUrl: (url) => set({ coBrowserUrl: url }),
 }))

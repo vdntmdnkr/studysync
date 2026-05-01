@@ -19,8 +19,9 @@ export default function PDFViewer({ peerConnectionRef }: PDFViewerProps) {
   const [scale, setScale] = useState(1.2)
   const [isRendering, setIsRendering] = useState(false)
   const [pdfjsReady, setPdfjsReady] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
 
-  const { currentPdfUrl, currentPage, totalPages, setPdf, setCurrentPage } = useSessionStore()
+  const { currentPdfUrl, currentPage, totalPages, setPdf, setCurrentPage, pdfTransferProgress } = useSessionStore()
 
   // Load PDF.js from CDN once
   useEffect(() => {
@@ -76,11 +77,25 @@ export default function PDFViewer({ peerConnectionRef }: PDFViewerProps) {
   // Open file via browser input
   const handleOpenFile = () => fileInputRef.current?.click()
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const url = URL.createObjectURL(file)
     setPdf(url, 0)
+    
+    // Transfer to peer!
+    if (peerConnectionRef.current) {
+      try {
+        setUploadProgress(0)
+        await peerConnectionRef.current.sendFile(file, (pct) => {
+          setUploadProgress(pct)
+        })
+      } catch (err) {
+        console.error('File transfer failed:', err)
+      } finally {
+        setUploadProgress(null)
+      }
+    }
   }
 
   return (
@@ -135,6 +150,20 @@ export default function PDFViewer({ peerConnectionRef }: PDFViewerProps) {
               <ZoomIn size={14} />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Progress Bars */}
+      {(uploadProgress !== null || pdfTransferProgress !== null) && (
+        <div className="w-full h-1" style={{ background: 'var(--color-bg-mid)' }}>
+          <div
+            className="h-full transition-all duration-300"
+            style={{
+              width: `${uploadProgress !== null ? uploadProgress : pdfTransferProgress}%`,
+              background: 'var(--color-accent-green)',
+              boxShadow: 'var(--shadow-glow-green)'
+            }}
+          />
         </div>
       )}
 

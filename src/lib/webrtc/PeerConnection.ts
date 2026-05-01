@@ -44,6 +44,8 @@ const DATA_CHANNELS = [
   'video-sync',
   'cursors',
   'presence',
+  'file-meta',
+  'file-transfer'
 ]
 
 export class PeerConnection {
@@ -146,16 +148,20 @@ export class PeerConnection {
   }
 
   private registerDataChannel(channel: RTCDataChannel) {
+    channel.binaryType = 'arraybuffer'
     this.dataChannels.set(channel.label, channel)
     channel.onopen = () => {
       console.log('[DataChannel] Open:', channel.label)
     }
     channel.onmessage = ({ data }) => {
-      try {
-        const parsed = JSON.parse(data as string) as unknown
-        this.callbacks.onDataChannelMessage?.(channel.label, parsed)
-      } catch {
-        // binary data — ignore
+      if (typeof data === 'string') {
+        try {
+          const parsed = JSON.parse(data) as unknown
+          this.callbacks.onDataChannelMessage?.(channel.label, parsed)
+        } catch { }
+      } else {
+        // Binary data
+        this.callbacks.onDataChannelMessage?.(channel.label, data)
       }
     }
     channel.onerror = (err) => {
@@ -182,6 +188,43 @@ export class PeerConnection {
   async replaceVideoTrack(track: MediaStreamTrack | null) {
     const sender = this.pc.getSenders().find((s) => s.track?.kind === 'video')
     if (sender) await sender.replaceTrack(track)
+  }
+
+  async sendFile(file: File, onProgress: (pct: number) => void) {
+    const channel = this.dataChannels.get('file-transfer')
+    if (!channel || channel.readyState !== 'open') throw new Error('Transfer channel not open')
+
+    this.sendOnChannel('file-meta', {
+      type: 'start',
+      name: file.name,
+      size: file.size,
+      mime: file.type
+    })
+
+    const buffer = await file.arrayBuffer()
+    const chunkSize = 16384 // 16KB is safe for WebRTC
+
+    for (let i = 0; i < buffer.byteLength; i += chunkSize) {
+      if (channel.readyState !== 'open') break
+      const chunk = buffer.slice(i, i + chunkSize)
+      channel.send(chunk)
+      
+      const pct = Math.min(100, Math.round(((i + chunk.byteLength) / buffer.byteLength) * 100))
+      onProgress(pct)
+
+      // Backpressure handling to avoid crashing the connection
+      if (channel.bufferedAmount > 1024 * 1024) { // 1MB buffer max
+        await new Promise<void>(resolve => {
+          const check = () => {
+            if (channel.bufferedAmount < 512 * 1024) resolve()
+            else setTimeout(check, 10)
+          }
+          check()
+        })
+      }
+    }
+
+    this.sendOnChannel('file-meta', { type: 'done' })
   }
 
   getStats() {

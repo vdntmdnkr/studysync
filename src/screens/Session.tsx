@@ -11,6 +11,7 @@ import type { ChatMessage } from '../app/store/chatStore'
 import type { CursorPos } from '../app/store/cursorStore'
 import TopBar from '../components/toolbar/TopBar'
 import PDFViewer from '../components/pdf/PDFViewer'
+import CoBrowser from '../components/browser/CoBrowser'
 import CameraFeed from '../components/camera/CameraFeed'
 import MusicPanel from '../components/music/MusicPanel'
 import NotesPanel from '../components/notes/NotesPanel'
@@ -28,8 +29,13 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://studysync-product
 export default function Session() {
   const navigate = useNavigate()
   const { roomCode, userId, token, setConnectionState, setPeerConnected,
-    setLocalStream, setRemoteStream, connectionState } = useSessionStore()
+    setLocalStream, setRemoteStream, connectionState, setPdfTransferProgress, setPdf } = useSessionStore()
+    
+  const incomingFileChunks = useRef<ArrayBuffer[]>([])
+  const incomingFileMeta = useRef<{ name: string, size: number, mime: string } | null>(null)
+  const incomingBytesReceived = useRef(0)
 
+  const [leftPanelTab, setLeftPanelTab] = useState<'pdf' | 'browser'>('pdf')
   const [rightPanelWidth, setRightPanelWidth] = useState(320)
   const [isDragging, setIsDragging] = useState(false)
   const [showTimerModal, setShowTimerModal] = useState(false)
@@ -119,8 +125,40 @@ export default function Session() {
     } else if (channel === 'cursors') {
       useCursorStore.getState().setRemoteCursor({ ...(msg as unknown as CursorPos), lastSeen: Date.now() })
 
+    } else if (channel === 'file-meta') {
+      const meta = msg as any
+      if (meta.type === 'start') {
+        incomingFileChunks.current = []
+        incomingFileMeta.current = { name: meta.name, size: meta.size, mime: meta.mime }
+        incomingBytesReceived.current = 0
+        setPdfTransferProgress(0)
+      } else if (meta.type === 'done') {
+        const blob = new Blob(incomingFileChunks.current, { type: incomingFileMeta.current?.mime || 'application/pdf' })
+        const url = URL.createObjectURL(blob)
+        setPdf(url, 0)
+        setPdfTransferProgress(null)
+        incomingFileChunks.current = []
+        incomingFileMeta.current = null
+        incomingBytesReceived.current = 0
+      }
+
+    } else if (channel === 'file-transfer') {
+      // It's binary data (ArrayBuffer)
+      incomingFileChunks.current.push(data as ArrayBuffer)
+      incomingBytesReceived.current += (data as ArrayBuffer).byteLength
+      if (incomingFileMeta.current && incomingFileMeta.current.size > 0) {
+        setPdfTransferProgress(Math.min(100, Math.round((incomingBytesReceived.current / incomingFileMeta.current.size) * 100)))
+      }
+
     } else if (channel === 'chat') {
       useChatStore.getState().addMessage(msg as unknown as ChatMessage)
+
+    } else if (channel === 'video-sync') {
+      const parsed = msg as any
+      if (parsed.action === 'navigate' && parsed.url) {
+        useSessionStore.getState().setCoBrowserUrl(parsed.url)
+        setLeftPanelTab('browser')
+      }
 
     } else if (channel === 'music-sync') {
       const store = useMusicStore.getState()
@@ -157,9 +195,37 @@ export default function Session() {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: PDF viewer */}
-        <div className="flex-1 overflow-hidden relative">
-          <PDFViewer peerConnectionRef={peerConnectionRef} />
+        {/* Left: Main Content Panel */}
+        <div className="flex-1 overflow-hidden relative flex flex-col">
+          {/* Main Tabs */}
+          <div className="flex flex-shrink-0" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg-mid)' }}>
+            <button onClick={() => setLeftPanelTab('pdf')}
+              className="flex-1 py-2 text-sm font-medium transition-all flex items-center justify-center gap-2"
+              style={{
+                color: leftPanelTab === 'pdf' ? 'var(--color-accent-teal)' : 'var(--color-text-muted)',
+                borderBottom: leftPanelTab === 'pdf' ? '2px solid var(--color-accent-teal)' : '2px solid transparent',
+                background: leftPanelTab === 'pdf' ? 'rgba(78,205,196,0.05)' : 'transparent',
+              }}>
+              📄 PDF Viewer
+            </button>
+            <button onClick={() => setLeftPanelTab('browser')}
+              className="flex-1 py-2 text-sm font-medium transition-all flex items-center justify-center gap-2"
+              style={{
+                color: leftPanelTab === 'browser' ? 'var(--color-accent-teal)' : 'var(--color-text-muted)',
+                borderBottom: leftPanelTab === 'browser' ? '2px solid var(--color-accent-teal)' : '2px solid transparent',
+                background: leftPanelTab === 'browser' ? 'rgba(78,205,196,0.05)' : 'transparent',
+              }}>
+              🌐 Co-Browser
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-hidden relative">
+            {leftPanelTab === 'pdf' ? (
+              <PDFViewer peerConnectionRef={peerConnectionRef} />
+            ) : (
+              <CoBrowser peerConnectionRef={peerConnectionRef} />
+            )}
+          </div>
         </div>
 
         {/* Resize handle */}
