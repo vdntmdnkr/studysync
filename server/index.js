@@ -63,16 +63,24 @@ io.on('connection', (socket) => {
     if (!room) { socket.emit('error', { message: 'Room not found' }); return }
     if (room.peers.size >= 2) { socket.emit('error', { message: 'Room is full' }); return }
 
-    const userId = room.peers.size === 0 ? 'A' : 'B'
+    const userId = token === room.tokenA ? 'A' : 'B'
     room.peers.set(socket.id, { userId, token })
     socket.join(roomCode)
     socket.data.roomCode = roomCode
     socket.data.userId = userId
 
     socket.emit('joined-room', { userId, roomCode })
-    console.log(`[Peer ${userId}] Joined room ${roomCode}`)
+    console.log(`[Peer ${userId}] Joined room ${roomCode} (socket: ${socket.id})`)
 
-    if (userId === 'B') socket.to(roomCode).emit('peer-joined', { userId: 'B' })
+    if (userId === 'B') {
+      socket.to(roomCode).emit('peer-joined', { userId: 'B' })
+    } else {
+      // If A joins AFTER B, let A know B is already here
+      const hasPeerB = Array.from(room.peers.values()).some(p => p.userId === 'B')
+      if (hasPeerB) {
+        socket.emit('peer-joined', { userId: 'B' })
+      }
+    }
   })
 
   socket.on('signal', (data) => {
